@@ -65,7 +65,8 @@ def init_feedforward_classifier(initialization_params):
     for i in range(len(initialization_params)-1):
         num_row = initialization_params[i] + 1
         num_col = initialization_params[i+1]
-        feedforward_classifier_connections.append(np.random.rand(num_row, num_col))
+        #feedforward_classifier_connections.append(np.random.rand(num_row, num_col))
+        feedforward_classifier_connections.append(np.ones((num_row, num_col)))
     return [feedforward_classifier_state, feedforward_classifier_connections]
 
 def init_autoencoder(initialization_params):
@@ -82,6 +83,11 @@ def init_autoencoder_classifier(initialization_params):
 # that input.
 def update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections):
     # Place your code here
+    temp = np.array([np.insert(feedforward_classifier_state[0], len(feedforward_classifier_state[0]), 1)]).T
+    feedforward_classifier_state[1] = temp.T.dot(feedforward_classifier_connections[0])
+    temp = np.array([np.insert(feedforward_classifier_state[1], len(feedforward_classifier_state[1]), 1)]).T
+    feedforward_classifier_state[2] = temp.T.dot(feedforward_classifier_connections[1])
+
     return feedforward_classifier_state
     
 def update_autoencoder(autoencoder_state, autoencoder_connections):
@@ -99,6 +105,10 @@ def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_clas
 # These functions are supposed to call the update functions.
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params):
     # Place your code here
+    feedforward_classifier_state[0] = training_data[0][0].T
+    feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
+    print "update:"
+    print feedforward_classifier_state
     
     # Please do output your training performance here
     return feedforward_classifier_connections
@@ -177,6 +187,25 @@ if __name__=='__main__':
     
     # Read data here
     training_data = None 
+    # use XOR function to test
+    training_data = []
+    training_data.append([])
+    training_data[0].append(np.array([[0, 0]]))
+    training_data[0].append(np.array([[0, 1]]))
+    training_data[0].append(np.array([[1, 0]]))
+    training_data[0].append(np.array([[1, 1]]))
+    training_data.append([])
+    training_data[1].append(np.array([[1]]))
+    training_data[1].append(np.array([[0]]))
+    training_data[1].append(np.array([[0]]))
+    training_data[1].append(np.array([[1]]))
+    print training_data[0]
+    print training_data[1]
+
+    #training_data.append(np.array([[0, 0, 1, 1],
+    #                               [0, 1, 0, 1],]))
+    #training_data.append(np.array([[1, 0, 0, 1]]))
+
     test_data = None
     
     # You may also use the gui_template.py functions to collect image data from the user. eg:
@@ -190,7 +219,7 @@ if __name__=='__main__':
     # Initialize network(s) here
     # each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    initialization_params = [2, 2, 2]       
+    initialization_params = [2, 2, 1]       
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
@@ -210,7 +239,7 @@ if __name__=='__main__':
     
     
     # Train network(s) here
-    training_params = None
+    training_params = [0.1]
     feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params)
     # Change training params if desired
     autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
