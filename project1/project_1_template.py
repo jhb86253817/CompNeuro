@@ -65,8 +65,7 @@ def init_feedforward_classifier(initialization_params):
     for i in range(len(initialization_params)-1):
         num_row = initialization_params[i] + 1
         num_col = initialization_params[i+1]
-        #feedforward_classifier_connections.append(np.random.rand(num_row, num_col))
-        feedforward_classifier_connections.append(np.ones((num_row, num_col)))
+        feedforward_classifier_connections.append(np.random.rand(num_row, num_col))
     return [feedforward_classifier_state, feedforward_classifier_connections]
 
 def init_autoencoder(initialization_params):
@@ -79,14 +78,17 @@ def init_autoencoder_classifier(initialization_params):
     
     
     
+def sigmoid(o):
+    return 1.0 / (1 + np.exp(-o))
+
 # Given an input, these functions calculate the corresponding output to 
 # that input.
 def update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections):
     # Place your code here
-    temp = np.array([np.insert(feedforward_classifier_state[0], len(feedforward_classifier_state[0]), 1)]).T
-    feedforward_classifier_state[1] = temp.T.dot(feedforward_classifier_connections[0])
-    temp = np.array([np.insert(feedforward_classifier_state[1], len(feedforward_classifier_state[1]), 1)]).T
-    feedforward_classifier_state[2] = temp.T.dot(feedforward_classifier_connections[1])
+    for i in range(len(feedforward_classifier_state)-1):
+        temp = np.array([np.insert(feedforward_classifier_state[i], len(feedforward_classifier_state[i]), 1)])
+        feedforward_classifier_state[i+1] = (temp.dot(feedforward_classifier_connections[i])).T
+        feedforward_classifier_state[i+1] = sigmoid(feedforward_classifier_state[i+1])
 
     return feedforward_classifier_state
     
@@ -98,6 +100,35 @@ def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_clas
     # Place your code here
     return autoencoder_classifier_state
     
+# Backpropagation
+def bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, target, training_params):
+    connections_num = len(feedforward_classifier_connections)
+    gradients = []
+    deltas = []
+    for i in range(connections_num):
+        o = feedforward_classifier_state[connections_num-i]
+        D = np.diag((o*(1-o))[:,0])
+        if i == 0:
+            e = o - target
+            delta = D.dot(e)
+        else:
+            delta = D.dot(feedforward_classifier_connections[connections_num-i][:-1,:].dot(deltas[-1]))
+        deltas.append(delta)
+        o_pre = feedforward_classifier_state[connections_num-i-1]
+        gradient = - training_params[0] * (delta.dot(np.array([np.insert(o_pre, len(o_pre), 1)]))).T
+        gradients.append(gradient)
+    return gradients[::-1]
+
+def bp_autoencoder():
+    pass
+
+def bp_autoencoder_classifier():
+    pass
+
+def cost_feedforward_classifier(feedforward_classifier_state, target):
+    o = feedforward_classifier_state[-1]
+    cost = np.sum(np.square(o-target)) / 2.0
+    return cost
         
         
 # Main functions to handle the training of the networks. 
@@ -105,11 +136,32 @@ def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_clas
 # These functions are supposed to call the update functions.
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params):
     # Place your code here
-    feedforward_classifier_state[0] = training_data[0][0].T
-    feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
-    print "update:"
-    print feedforward_classifier_state
-    
+    data_num = len(training_data[0])
+    costs = []
+    for i in range(900):
+        cost = 0.0
+        gradients_cml = None
+        #gradients_cml.append(np.zeros((3,2)))
+        #gradients_cml.append(np.zeros((3,1)))
+        for j in range(data_num):
+            o = training_data[0][j].T
+            target = training_data[1][j].T
+            feedforward_classifier_state[0] = o
+            feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
+            cost += cost_feedforward_classifier(feedforward_classifier_state, target)
+            gradients = bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, target, training_params)
+            if j==0:
+                gradients_cml = gradients
+            else:
+                for k in range(len(gradients)):
+                    gradients_cml[k] += gradients[k]
+        for k in range(len(gradients_cml)):
+            feedforward_classifier_connections[k] += gradients_cml[k]
+
+        costs.append(cost)
+    ################################################################### 
+    plt.plot(range(1,901), costs)
+    plt.show()
     # Please do output your training performance here
     return feedforward_classifier_connections
     
@@ -195,16 +247,12 @@ if __name__=='__main__':
     training_data[0].append(np.array([[1, 0]]))
     training_data[0].append(np.array([[1, 1]]))
     training_data.append([])
-    training_data[1].append(np.array([[1]]))
-    training_data[1].append(np.array([[0]]))
     training_data[1].append(np.array([[0]]))
     training_data[1].append(np.array([[1]]))
-    print training_data[0]
-    print training_data[1]
-
-    #training_data.append(np.array([[0, 0, 1, 1],
-    #                               [0, 1, 0, 1],]))
-    #training_data.append(np.array([[1, 0, 0, 1]]))
+    training_data[1].append(np.array([[1]]))
+    training_data[1].append(np.array([[0]]))
+    #print training_data[0]
+    #print training_data[1]
 
     test_data = None
     
@@ -223,11 +271,6 @@ if __name__=='__main__':
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
-    ################################################################################################
-    pprint.pprint(feedforward_classifier_state)
-    print " "
-    pprint.pprint(feedforward_classifier_connections)
-    ################################################################################################
     # Change initialization params if desired
     autoencoder_state = None
     autoencoder_connections = None
@@ -239,7 +282,7 @@ if __name__=='__main__':
     
     
     # Train network(s) here
-    training_params = [0.1]
+    training_params = [1]
     feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params)
     # Change training params if desired
     autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
@@ -255,4 +298,4 @@ if __name__=='__main__':
     # Change test params if desired
     test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
 	
-	# You can use gui_template.py functions for visualization as you wish
+    # You can use gui_template.py functions for visualization as you wish
