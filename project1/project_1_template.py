@@ -50,7 +50,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy import linalg,stats
-import pprint
+import cPickle, gzip
 # Uncomment if you will use the GUI code:
 # import gui_template as gt
 
@@ -65,7 +65,7 @@ def init_feedforward_classifier(initialization_params):
     for i in range(len(initialization_params)-1):
         num_row = initialization_params[i] + 1
         num_col = initialization_params[i+1]
-        feedforward_classifier_connections.append(np.random.rand(num_row, num_col))
+        feedforward_classifier_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
     return [feedforward_classifier_state, feedforward_classifier_connections]
 
 def init_autoencoder(initialization_params):
@@ -77,8 +77,9 @@ def init_autoencoder_classifier(initialization_params):
     return [autoencoder_classifier_state, autoencoder_classifier_connections]
     
     
-    
 def sigmoid(o):
+    #if abs(o[0]) > 500:
+    #    print o[0]
     return 1.0 / (1 + np.exp(-o))
 
 # Given an input, these functions calculate the corresponding output to 
@@ -135,10 +136,12 @@ def cost_feedforward_classifier(feedforward_classifier_state, target):
 # Feel free to write auxiliary functions and call them from here.
 # These functions are supposed to call the update functions.
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params):
+    print "start training..."
     # Place your code here
     data_num = len(training_data[0])
+    iteration_num = training_params[1]
     costs = []
-    for i in range(900):
+    for i in range(iteration_num):
         cost = 0.0
         gradients_cml = None
         #gradients_cml.append(np.zeros((3,2)))
@@ -159,9 +162,10 @@ def train_feedforward_classifier(feedforward_classifier_state, feedforward_class
             feedforward_classifier_connections[k] += gradients_cml[k]
 
         costs.append(cost)
+        print cost
     ################################################################### 
-    plt.plot(range(1,901), costs)
-    plt.show()
+    #plt.plot(range(1,iteration_num), costs)
+    #plt.show()
     # Please do output your training performance here
     return feedforward_classifier_connections
     
@@ -238,28 +242,41 @@ if __name__=='__main__':
     
     
     # Read data here
-    training_data = None 
-    # use XOR function to test
-    training_data = []
-    training_data.append([])
-    training_data[0].append(np.array([[0, 0]]))
-    training_data[0].append(np.array([[0, 1]]))
-    training_data[0].append(np.array([[1, 0]]))
-    training_data[0].append(np.array([[1, 1]]))
-    training_data.append([])
-    training_data[1].append(np.array([[0]]))
-    training_data[1].append(np.array([[1]]))
-    training_data[1].append(np.array([[1]]))
-    training_data[1].append(np.array([[0]]))
-    #print training_data[0]
-    #print training_data[1]
+    f = gzip.open('MNIST_theano/mnist.pkl.gz', 'rb')
+    train_set, valid_set, test_set = cPickle.load(f)
+    f.close()
+    # treat both training data and validate data as training data
+    # 2d array, 60000 x 784
+    train_set_images = np.concatenate((train_set[0], valid_set[0]), axis = 0)
+    # 1d array, 60000 
+    train_set_labels = np.concatenate((train_set[1], valid_set[1]))
+    # transform digit in labels to ont-hot representation
+    train_set_labels_vec = np.zeros((len(train_set_labels), 10))
+    for i in range(len(train_set_labels)):
+        train_set_labels_vec[i, train_set_labels[i]] = 1
+    training_data = [[], []] 
+    for i in range(train_set_images.shape[0]):
+        # transform each image to a 2d array, 1 x 784
+        training_data[0].append(np.array([train_set_images[i,:]]))
+        # transform each label to a 2d array, 1 x 10
+        training_data[1].append(np.array([train_set_labels_vec[i,:]]))
+    
+    test_set_images = test_set[0]
+    test_set_labels = test_set[1]
+    # transform digit in labels to ont-hot representation
+    test_set_labels_vec = np.zeros((len(test_set_labels), 10))
+    for i in range(len(test_set_labels)):
+        test_set_labels_vec[i, test_set_labels[i]] = 1
 
-    test_data = None
+    test_data = [[], []]
+    for i in range(test_set_images.shape[0]):
+        test_data[0].append(np.array([test_set_images[i,:]]))
+        test_data[1].append(np.array([test_set_labels_vec[i,:]]))
     
     # You may also use the gui_template.py functions to collect image data from the user. eg:
     # training_data = gt.get_images()
     # if len(training_data) != 0:
-	#     gt.visualize_image(training_data[-1])
+        #     gt.visualize_image(training_data[-1])
     
     # If you wish, you can have a loop here, or any other place really, that will update the
     # parameters below automatically.
@@ -267,35 +284,36 @@ if __name__=='__main__':
     # Initialize network(s) here
     # each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    initialization_params = [2, 2, 1]       
+    initialization_params = [784, 30, 10]       
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
-    # Change initialization params if desired
-    autoencoder_state = None
-    autoencoder_connections = None
-    [autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
-    # Change initialization params if desired
-    autoencoder_classifier_state = None
-    autoencoder_classifier_connections = None
-    [autoencoder_classifier_state, autoencoder_classifier_connections] = init_autoencoder_classifier(initialization_params)
+    ## Change initialization params if desired
+    #autoencoder_state = None
+    #autoencoder_connections = None
+    #[autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
+    ## Change initialization params if desired
+    #autoencoder_classifier_state = None
+    #autoencoder_classifier_connections = None
+    #[autoencoder_classifier_state, autoencoder_classifier_connections] = init_autoencoder_classifier(initialization_params)
     
     
     # Train network(s) here
-    training_params = [1]
+    # learning rate, training iterations
+    training_params = [0.00001, 50]
     feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params)
-    # Change training params if desired
-    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
-    # Change training params if desired
-    autoencoder_classifier_connections = train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params)
+    ## Change training params if desired
+    #autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
+    ## Change training params if desired
+    #autoencoder_classifier_connections = train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params)
    
     
-    # Test network(s) here
-    test_params = None
-    test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data, test_params)
-    # Change test params if desired
-    test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
-    # Change test params if desired
-    test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
-	
-    # You can use gui_template.py functions for visualization as you wish
+    ## Test network(s) here
+    #test_params = None
+    #test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data, test_params)
+    ## Change test params if desired
+    #test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
+    ## Change test params if desired
+    #test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
+    #    
+    ## You can use gui_template.py functions for visualization as you wish
