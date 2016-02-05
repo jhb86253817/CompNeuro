@@ -76,6 +76,18 @@ def init_feedforward_classifier(initialization_params):
 
 def init_autoencoder(initialization_params):
     # Place your code here
+    layers_size = initialization_params[0]
+    data_num = initialization_params[1]
+
+    autoencoder_state = [] 
+    for layer_size in layers_size:
+        autoencoder_state.append(np.zeros((data_num, layer_size)))
+    autoencoder_connections = []
+    for i in range(len(layers_size)-1):
+        num_row = layers_size[i] + 1
+        num_col = layers_size[i+1]
+        # random initialization with interval [-0.1, 0.1]
+        autoencoder_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
     return [autoencoder_state, autoencoder_connections]
 
 def init_autoencoder_classifier(initialization_params):
@@ -95,11 +107,16 @@ def update_feedforward_classifier(feedforward_classifier_state, feedforward_clas
         state_temp = np.concatenate((feedforward_classifier_state[i], bias), axis = 1)
         feedforward_classifier_state[i+1] = state_temp.dot(feedforward_classifier_connections[i])
         feedforward_classifier_state[i+1] = sigmoid(feedforward_classifier_state[i+1])
-
     return feedforward_classifier_state
     
 def update_autoencoder(autoencoder_state, autoencoder_connections):
     # Place your code here
+    data_num = autoencoder_state[0].shape[0]
+    bias = np.ones((data_num, 1))
+    for i in range(len(autoencoder_state)-1):
+        state_temp = np.concatenate((autoencoder_state[i], bias), axis = 1)
+        autoencoder_state[i+1] = state_temp.dot(autoencoder_connections[i])
+        autoencoder_state[i+1] = sigmoid(autoencoder_state[i+1])
     return autoencoder_state
     
 def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections):
@@ -127,8 +144,26 @@ def bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifi
         gradients.append(gradient)
     return gradients[::-1]
 
-def bp_autoencoder():
-    pass
+def bp_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, target, training_params):
+    data_num = autoencoder_classifier_state[0].shape[0]
+    connections_num = len(autoencoder_classifier_connections)
+    bias = np.ones((data_num, 1))
+    gradients = []
+    deltas = []
+    for i in range(connections_num):
+        output = autoencoder_state[connections_num-i]
+        if i == 0:
+            error = output - target
+            delta = output * (1 - output) * error
+        else:
+            delta = output * (1 - output) * deltas[-1].dot(autoencoder_connections[connections_num-i][:-1,:].T)
+        deltas.append(delta)
+        output_pre = autoencoder_state[connections_num-i-1]
+        output_pre = np.concatenate((output_pre, bias), axis = 1)
+        gradient = - training_params[0] * output_pre.T.dot(delta)
+        gradients.append(gradient)
+    return gradients[::-1]
+
 
 def bp_autoencoder_classifier():
     pass
@@ -136,12 +171,16 @@ def bp_autoencoder_classifier():
 def cost_feedforward_classifier(output, target):
     cost = np.sum(np.square(output - target)) / 2
     return cost
+
+def cost_autoencoder(output, target):
+    cost = np.sum(np.square(output - target)) / 2
+    return cost
         
 # Main functions to handle the training of the networks. 
 # Feel free to write auxiliary functions and call them from here.
 # These functions are supposed to call the update functions.
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params):
-    print "start training..."
+    print "start training feedforward classifier..."
     # Place your code here
     data_num = training_data[0].shape[0]
     iteration_num = training_params[1]
@@ -162,18 +201,33 @@ def train_feedforward_classifier(feedforward_classifier_state, feedforward_class
     # Please do output your training performance here
     return feedforward_classifier_connections
     
-def train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params):
+def train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params):
+    print "start training autoencoder..."
     # Place your code here
+    data_num = training_data[0].shape[0]
+    iteration_num = training_params[1]
+    costs = []
+    for i in range(iteration_num):
+        cost_test = test_autoencoder(autoencoder_state, autoencoder_connections, test_data)
+        autoencoder_state[0] = training_data[0]
+        autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
+        cost = cost_autoencoder(autoencoder_state[-1], training_data[0])
+        costs.append(cost)
+        print "iteration %d, cost: %f, cost_test: %f" % (i+1, cost, cost_test)
+        # compute gradients using backpropagation
+        gradients = bp_autoencoder(autoencoder_state, autoencoder_connections, training_data[0], training_params)
+        # update weights using the gradients
+        for k in range(len(gradients)):
+            autoencoder_connections[k] += gradients[k]
     
     # Please do output your training performance here
     return autoencoder_connections
 
-def train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params):
+def train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params):
     # Place your code here
     
     # Please do output your training performance here
     return autoencoder_classifier_connections
-
 
 
 # Main functions to handle the testing of the networks. 
@@ -192,11 +246,16 @@ def test_feedforward_classifier(feedforward_classifier_state, feedforward_classi
     # Please do output your test performance here
     return 1.0 * correct / len(test_data[1])
     
-def test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params):
+def test_autoencoder(autoencoder_state, autoencoder_connections, test_data):
     # Place your code here
+    autoencoder_state[0] = test_data[0]
+    autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
+    output = autoencoder_state[-1]
+    target = test_data[0]
+    cost_test = cost_autoencoder(output, target)
     
     # Please do output your test performance here
-    None
+    return cost_test
 
 def test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params):
     # Place your code here
@@ -286,10 +345,11 @@ if __name__=='__main__':
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
-    ## Change initialization params if desired
-    #autoencoder_state = None
-    #autoencoder_connections = None
-    #[autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
+    # Change initialization params if desired
+    initialization_params = [[784, 30, 784], training_data[0].shape[0]]       
+    autoencoder_state = None
+    autoencoder_connections = None
+    [autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
     ## Change initialization params if desired
     #autoencoder_classifier_state = None
     #autoencoder_classifier_connections = None
@@ -300,16 +360,17 @@ if __name__=='__main__':
     # learning rate, training iterations
     training_params = [0.00002, 100]
     feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
-    ## Change training params if desired
-    #autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
+    # Change training params if desired
+    training_params = [0.00001, 100]
+    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
     ## Change training params if desired
     #autoencoder_classifier_connections = train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params)
    
     
-    # Test network(s) here
-    test_params = None
-    accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
-    print "Accuracy on test data: %f" % accuracy
+    ## Test network(s) here
+    #test_params = None
+    #accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
+    #print "Accuracy on test data: %f" % accuracy
     ## Change test params if desired
     #test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
     ## Change test params if desired
