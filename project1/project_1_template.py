@@ -54,6 +54,8 @@ import cPickle, gzip
 # Uncomment if you will use the GUI code:
 # import gui_template as gt
 
+# fix random seed
+np.random.seed(1)
 
 # Initialize the corresponding networks
 def init_feedforward_classifier(initialization_params):
@@ -138,18 +140,19 @@ def cost_feedforward_classifier(output, target):
 # Main functions to handle the training of the networks. 
 # Feel free to write auxiliary functions and call them from here.
 # These functions are supposed to call the update functions.
-def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params):
+def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params):
     print "start training..."
     # Place your code here
     data_num = training_data[0].shape[0]
     iteration_num = training_params[1]
     costs = []
     for i in range(iteration_num):
+        accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
         feedforward_classifier_state[0] = training_data[0]
         feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
         cost = cost_feedforward_classifier(feedforward_classifier_state[-1], training_data[1])
         costs.append(cost)
-        print cost
+        print "iteration %d, cost: %f, accuracy: %f" % (i+1, cost, accuracy)
         # compute gradients using backpropagation
         gradients = bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data[1], training_params)
         # update weights using the gradients
@@ -176,11 +179,18 @@ def train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_conne
 # Main functions to handle the testing of the networks. 
 # Feel free to write auxiliary functions and call them from here.
 # These functions are supposed to call the 'run' functions.
-def test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data, test_params):
+def test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data):
     # Place your code here
+    feedforward_classifier_state[0] = test_data[0]
+    feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
+    # do prediction as the class with the largest output
+    output = np.argmax(feedforward_classifier_state[-1], axis = 1)
+    # labels of the test data
+    target = test_data[1]
+    correct = list(output - target).count(0)
     
     # Please do output your test performance here
-    None
+    return 1.0 * correct / len(test_data[1])
     
 def test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params):
     # Place your code here
@@ -251,14 +261,14 @@ if __name__=='__main__':
     
     test_set_images = test_set[0]
     test_set_labels = test_set[1]
-    # transform digit in labels to ont-hot representation
-    # becomes 2d array, 10000 x 10
-    test_set_labels_vec = np.zeros((len(test_set_labels), 10))
-    for i in range(len(test_set_labels)):
-        test_set_labels_vec[i, test_set_labels[i]] = 1
+    ## transform digit in labels to ont-hot representation
+    ## becomes 2d array, 10000 x 10
+    #test_set_labels_vec = np.zeros((len(test_set_labels), 10))
+    #for i in range(len(test_set_labels)):
+    #    test_set_labels_vec[i, test_set_labels[i]] = 1
     test_data = []
     test_data.append(test_set_images)
-    test_data.append(test_set_labels_vec)
+    test_data.append(test_set_labels)
     
     # You may also use the gui_template.py functions to collect image data from the user. eg:
     # training_data = gt.get_images()
@@ -269,9 +279,10 @@ if __name__=='__main__':
     # parameters below automatically.
     
     # Initialize network(s) here
-    # each number stands for the number of neurons in each layer
+    # two components in the initialization parameters, network layer size and number of data
+    # for the layer size, each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    initialization_params = [[784, 30, 10], training_data[0].shape[0]]       
+    initialization_params = [[784, 10], training_data[0].shape[0]]       
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
@@ -287,17 +298,18 @@ if __name__=='__main__':
     
     # Train network(s) here
     # learning rate, training iterations
-    training_params = [0.00001, 50]
-    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params)
+    training_params = [0.00002, 100]
+    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
     ## Change training params if desired
     #autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, training_params)
     ## Change training params if desired
     #autoencoder_classifier_connections = train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params)
    
     
-    ## Test network(s) here
-    #test_params = None
-    #test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data, test_params)
+    # Test network(s) here
+    test_params = None
+    accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
+    print "Accuracy on test data: %f" % accuracy
     ## Change test params if desired
     #test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
     ## Change test params if desired
