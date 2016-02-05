@@ -51,6 +51,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy import linalg,stats
 import cPickle, gzip
+import json
 # Uncomment if you will use the GUI code:
 # import gui_template as gt
 
@@ -358,11 +359,21 @@ if __name__=='__main__':
     
     # Train network(s) here
     # learning rate, training iterations
-    training_params = [0.00002, 100]
+    training_params = [0.00002, 5]
     feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
+    feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
+    # save feedforward classifier weights in json file
+    print "saving feedforward classifier connections..."
+    with open('feedforward_classifier_connections.json', 'w') as f:
+        f.write(json.dumps(feedforward_classifier_connections_json))
     # Change training params if desired
-    training_params = [0.00001, 100]
+    training_params = [0.00001, 5]
     autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
+    autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
+    # save autoencoder weights in json file
+    print "saving autoencoder connections..."
+    with open('autoencoder_connections.json', 'w') as f:
+        f.write(json.dumps(autoencoder_connections_json))
     ## Change training params if desired
     #autoencoder_classifier_connections = train_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, training_params)
    
