@@ -58,13 +58,17 @@ import cPickle, gzip
 # Initialize the corresponding networks
 def init_feedforward_classifier(initialization_params):
     # Place your code here
+    layers_size = initialization_params[0]
+    data_num = initialization_params[1]
+
     feedforward_classifier_state = [] 
-    for num in initialization_params:
-        feedforward_classifier_state.append(np.zeros((num, 1)))
+    for layer_size in layers_size:
+        feedforward_classifier_state.append(np.zeros((data_num, layer_size)))
     feedforward_classifier_connections = []
-    for i in range(len(initialization_params)-1):
-        num_row = initialization_params[i] + 1
-        num_col = initialization_params[i+1]
+    for i in range(len(layers_size)-1):
+        num_row = layers_size[i] + 1
+        num_col = layers_size[i+1]
+        # random initialization with interval [-0.1, 0.1]
         feedforward_classifier_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
     return [feedforward_classifier_state, feedforward_classifier_connections]
 
@@ -76,19 +80,18 @@ def init_autoencoder_classifier(initialization_params):
     # Place your code here
     return [autoencoder_classifier_state, autoencoder_classifier_connections]
     
-    
 def sigmoid(o):
-    #if abs(o[0]) > 500:
-    #    print o[0]
     return 1.0 / (1 + np.exp(-o))
 
 # Given an input, these functions calculate the corresponding output to 
 # that input.
 def update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections):
     # Place your code here
+    data_num = feedforward_classifier_state[0].shape[0]
+    bias = np.ones((data_num, 1))
     for i in range(len(feedforward_classifier_state)-1):
-        temp = np.array([np.insert(feedforward_classifier_state[i], len(feedforward_classifier_state[i]), 1)])
-        feedforward_classifier_state[i+1] = (temp.dot(feedforward_classifier_connections[i])).T
+        state_temp = np.concatenate((feedforward_classifier_state[i], bias), axis = 1)
+        feedforward_classifier_state[i+1] = state_temp.dot(feedforward_classifier_connections[i])
         feedforward_classifier_state[i+1] = sigmoid(feedforward_classifier_state[i+1])
 
     return feedforward_classifier_state
@@ -103,20 +106,22 @@ def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_clas
     
 # Backpropagation
 def bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, target, training_params):
+    data_num = feedforward_classifier_state[0].shape[0]
     connections_num = len(feedforward_classifier_connections)
+    bias = np.ones((data_num, 1))
     gradients = []
     deltas = []
     for i in range(connections_num):
-        o = feedforward_classifier_state[connections_num-i]
-        D = np.diag((o*(1-o))[:,0])
+        output = feedforward_classifier_state[connections_num-i]
         if i == 0:
-            e = o - target
-            delta = D.dot(e)
+            error = output - target
+            delta = output * (1 - output) * error
         else:
-            delta = D.dot(feedforward_classifier_connections[connections_num-i][:-1,:].dot(deltas[-1]))
+            delta = output * (1 - output) * deltas[-1].dot(feedforward_classifier_connections[connections_num-i][:-1,:].T)
         deltas.append(delta)
-        o_pre = feedforward_classifier_state[connections_num-i-1]
-        gradient = - training_params[0] * (delta.dot(np.array([np.insert(o_pre, len(o_pre), 1)]))).T
+        output_pre = feedforward_classifier_state[connections_num-i-1]
+        output_pre = np.concatenate((output_pre, bias), axis = 1)
+        gradient = - training_params[0] * output_pre.T.dot(delta)
         gradients.append(gradient)
     return gradients[::-1]
 
@@ -126,11 +131,9 @@ def bp_autoencoder():
 def bp_autoencoder_classifier():
     pass
 
-def cost_feedforward_classifier(feedforward_classifier_state, target):
-    o = feedforward_classifier_state[-1]
-    cost = np.sum(np.square(o-target)) / 2.0
+def cost_feedforward_classifier(output, target):
+    cost = np.sum(np.square(output - target)) / 2
     return cost
-        
         
 # Main functions to handle the training of the networks. 
 # Feel free to write auxiliary functions and call them from here.
@@ -138,34 +141,21 @@ def cost_feedforward_classifier(feedforward_classifier_state, target):
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, training_params):
     print "start training..."
     # Place your code here
-    data_num = len(training_data[0])
+    data_num = training_data[0].shape[0]
     iteration_num = training_params[1]
     costs = []
     for i in range(iteration_num):
-        cost = 0.0
-        gradients_cml = None
-        #gradients_cml.append(np.zeros((3,2)))
-        #gradients_cml.append(np.zeros((3,1)))
-        for j in range(data_num):
-            o = training_data[0][j].T
-            target = training_data[1][j].T
-            feedforward_classifier_state[0] = o
-            feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
-            cost += cost_feedforward_classifier(feedforward_classifier_state, target)
-            gradients = bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, target, training_params)
-            if j==0:
-                gradients_cml = gradients
-            else:
-                for k in range(len(gradients)):
-                    gradients_cml[k] += gradients[k]
-        for k in range(len(gradients_cml)):
-            feedforward_classifier_connections[k] += gradients_cml[k]
-
+        feedforward_classifier_state[0] = training_data[0]
+        feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
+        cost = cost_feedforward_classifier(feedforward_classifier_state[-1], training_data[1])
         costs.append(cost)
         print cost
-    ################################################################### 
-    #plt.plot(range(1,iteration_num), costs)
-    #plt.show()
+        # compute gradients using backpropagation
+        gradients = bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data[1], training_params)
+        # update weights using the gradients
+        for k in range(len(gradients)):
+            feedforward_classifier_connections[k] += gradients[k]
+
     # Please do output your training performance here
     return feedforward_classifier_connections
     
@@ -251,27 +241,24 @@ if __name__=='__main__':
     # 1d array, 60000 
     train_set_labels = np.concatenate((train_set[1], valid_set[1]))
     # transform digit in labels to ont-hot representation
+    # becomes 2d array, 60000 x 10
     train_set_labels_vec = np.zeros((len(train_set_labels), 10))
     for i in range(len(train_set_labels)):
         train_set_labels_vec[i, train_set_labels[i]] = 1
-    training_data = [[], []] 
-    for i in range(train_set_images.shape[0]):
-        # transform each image to a 2d array, 1 x 784
-        training_data[0].append(np.array([train_set_images[i,:]]))
-        # transform each label to a 2d array, 1 x 10
-        training_data[1].append(np.array([train_set_labels_vec[i,:]]))
+    training_data = [] 
+    training_data.append(train_set_images)
+    training_data.append(train_set_labels_vec)
     
     test_set_images = test_set[0]
     test_set_labels = test_set[1]
     # transform digit in labels to ont-hot representation
+    # becomes 2d array, 10000 x 10
     test_set_labels_vec = np.zeros((len(test_set_labels), 10))
     for i in range(len(test_set_labels)):
         test_set_labels_vec[i, test_set_labels[i]] = 1
-
-    test_data = [[], []]
-    for i in range(test_set_images.shape[0]):
-        test_data[0].append(np.array([test_set_images[i,:]]))
-        test_data[1].append(np.array([test_set_labels_vec[i,:]]))
+    test_data = []
+    test_data.append(test_set_images)
+    test_data.append(test_set_labels_vec)
     
     # You may also use the gui_template.py functions to collect image data from the user. eg:
     # training_data = gt.get_images()
@@ -284,7 +271,7 @@ if __name__=='__main__':
     # Initialize network(s) here
     # each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    initialization_params = [784, 30, 10]       
+    initialization_params = [[784, 30, 10], training_data[0].shape[0]]       
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
