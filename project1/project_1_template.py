@@ -57,7 +57,7 @@ import json
 # import gui_template as gt
 
 # fix random seed
-np.random.seed(100)
+np.random.seed(123)
 
 # Initialize the corresponding networks
 def init_feedforward_classifier(initialization_params):
@@ -423,15 +423,15 @@ if __name__=='__main__':
     # two components in the initialization parameters, network layer size and number of data
     # for the layer size, each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    #initialization_params = [[784, 30, 30, 10], training_data[0].shape[0]]       
-    #feedforward_classifier_state = None
-    #feedforward_classifier_connections = None 
-    #[feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
+    initialization_params = [[784, 10], training_data[0].shape[0]]       
+    feedforward_classifier_state = None
+    feedforward_classifier_connections = None 
+    [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
     # Change initialization params if desired
-    initialization_params = [[784, 50, 784], training_data[0].shape[0]]       
-    autoencoder_state = None
-    autoencoder_connections = None
-    [autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
+    #initialization_params = [[784, 50, 784], training_data[0].shape[0]]       
+    #autoencoder_state = None
+    #autoencoder_connections = None
+    #[autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
     # Change initialization params if desired
     #initialization_params = [[784, 50, 20, 10], training_data[0].shape[0], autoencoder_connections[0]]       
     #autoencoder_classifier_state = None
@@ -441,17 +441,17 @@ if __name__=='__main__':
     
     # Train network(s) here
     # learning rate, training iterations
-    #training_params = [0.00002, 90]
-    #feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
-    #feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
-    ## save feedforward classifier weights in json file
-    #print "saving feedforward classifier connections..."
-    #with open('feedforward_classifier_connections.json', 'w') as f:
-    #    f.write(json.dumps(feedforward_classifier_connections_json))
+    training_params = [0.00002, 400]
+    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
+    feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
+    # save feedforward classifier weights in json file
+    print "saving feedforward classifier connections..."
+    with open('fc_none_123_0001_400.json', 'w') as f:
+        f.write(json.dumps(feedforward_classifier_connections_json))
     # Change training params if desired
     # learning rate, iteration number, sparse constraint, sparse rate
-    training_params = [0.00001, 100, 0.05, 1]
-    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
+    #training_params = [0.000002, 100, 0.05, 1]
+    #autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
     #autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
     ## save autoencoder weights in json file
     #print "saving autoencoder connections..."
