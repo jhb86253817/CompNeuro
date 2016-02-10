@@ -59,129 +59,195 @@ import json
 # fix random seed
 np.random.seed(123)
 
-# Initialize the corresponding networks
+# Initialize feedforward classifier
 def init_feedforward_classifier(initialization_params):
-    # Place your code here
+    # a list indicating size of each layer, including input and output layers
     layers_size = initialization_params[0]
+    # total number of data, for MNIST, it has 60000 training data
     data_num = initialization_params[1]
 
     feedforward_classifier_state = [] 
+    # initialize states of each layer with zeros
+    # each layer's state is a matrix with size (data_num, layer_size), which stores states of all the training data
     for layer_size in layers_size:
         feedforward_classifier_state.append(np.zeros((data_num, layer_size)))
+
     feedforward_classifier_connections = []
+    # initialize network weights with uniform random values
     for i in range(len(layers_size)-1):
+        # plus one for the weights of bias
         num_row = layers_size[i] + 1
         num_col = layers_size[i+1]
         # random initialization with interval [-0.1, 0.1]
         feedforward_classifier_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
+
     return [feedforward_classifier_state, feedforward_classifier_connections]
 
+# Initialize autoencoder
 def init_autoencoder(initialization_params):
-    # Place your code here
+    # a list indicating size of each layer, including input and output layers
     layers_size = initialization_params[0]
+    # total number of data, for MNIST, it has 60000 training data
     data_num = initialization_params[1]
 
     autoencoder_state = [] 
+    # initialize states of each layer with zeros
+    # each layer's state is a matrix with size (data_num, layer_size), which stores states of all the training data
     for layer_size in layers_size:
         autoencoder_state.append(np.zeros((data_num, layer_size)))
+
     autoencoder_connections = []
+    # initialize network weights with uniform random values
     for i in range(len(layers_size)-1):
+        # plus one for the weights of bias
         num_row = layers_size[i] + 1
         num_col = layers_size[i+1]
         # random initialization with interval [-0.1, 0.1]
         autoencoder_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
+
     return [autoencoder_state, autoencoder_connections]
 
+# Initialize autoencoder classifier
 def init_autoencoder_classifier(initialization_params):
-    # Place your code here
+    # a list indicating size of each layer, including input and output layers
     layers_size = initialization_params[0]
+    # total number of data, for MNIST, it has 60000 training data
     data_num = initialization_params[1]
+    # the weights of a trained hidden layer from autoencoder
     first_layer_connection = initialization_params[2]
 
     autoencoder_classifier_state = [] 
+    # initialize states of each layer with zeros
+    # each layer's state is a matrix with size (data_num, layer_size), which stores states of all the training data
     for layer_size in layers_size:
         autoencoder_classifier_state.append(np.zeros((data_num, layer_size)))
+
     autoencoder_classifier_connections = []
+    # initialize the weights of the first layer with trained weights from autoencoder
     autoencoder_classifier_connections.append(first_layer_connection)
+    # initialize network weights with uniform random values except the first layer
     for i in range(1, len(layers_size)-1):
+        # plus one for the weights of bias
         num_row = layers_size[i] + 1
         num_col = layers_size[i+1]
         # random initialization with interval [-0.1, 0.1]
         autoencoder_classifier_connections.append((np.random.rand(num_row, num_col) - 0.5) / 5)
+
     return [autoencoder_classifier_state, autoencoder_classifier_connections]
     
+# Sigmoid activation function, the input can be an array type matrix
 def sigmoid(o):
     return 1.0 / (1 + np.exp(-o))
 
-# Given an input, these functions calculate the corresponding output to 
-# that input.
+# Update function of feedforward classifier, given input, update all states forwardly
 def update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections):
-    # Place your code here
+    # total number of data, for MNIST, it has 60000 training data
     data_num = feedforward_classifier_state[0].shape[0]
+    # bias is always one 
     bias = np.ones((data_num, 1))
+    # iteratively update each layer
     for i in range(len(feedforward_classifier_state)-1):
+        # combine bias with other neurons of this layer
         state_temp = np.concatenate((feedforward_classifier_state[i], bias), axis = 1)
+        # matrix multiplication with corresponding weights
         feedforward_classifier_state[i+1] = state_temp.dot(feedforward_classifier_connections[i])
+        # each state then transformed by sigmoid function
         feedforward_classifier_state[i+1] = sigmoid(feedforward_classifier_state[i+1])
+
     return feedforward_classifier_state
     
+# Update function of autoencoder, given input, update all states forwardly
 def update_autoencoder(autoencoder_state, autoencoder_connections):
-    # Place your code here
+    # total number of data, for MNIST, it has 60000 training data
     data_num = autoencoder_state[0].shape[0]
+    # bias is always one 
     bias = np.ones((data_num, 1))
+    # iteratively update each layer
     for i in range(len(autoencoder_state)-1):
+        # combine bias with other neurons of this layer
         state_temp = np.concatenate((autoencoder_state[i], bias), axis = 1)
+        # matrix multiplication with corresponding weights
         autoencoder_state[i+1] = state_temp.dot(autoencoder_connections[i])
+        # each state then transformed by sigmoid function
         autoencoder_state[i+1] = sigmoid(autoencoder_state[i+1])
+
     return autoencoder_state
     
+# Update function of autoencoder classifier, given input, update all states forwardly
 def update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections):
-    # Place your code here
+    # total number of data, for MNIST, it has 60000 training data
     data_num = autoencoder_classifier_state[0].shape[0]
+    # bias is always one 
     bias = np.ones((data_num, 1))
+    # iteratively update each layer
     for i in range(len(autoencoder_classifier_state)-1):
+        # combine bias with other neurons of this layer
         state_temp = np.concatenate((autoencoder_classifier_state[i], bias), axis = 1)
+        # matrix multiplication with corresponding weights
         autoencoder_classifier_state[i+1] = state_temp.dot(autoencoder_classifier_connections[i])
+        # each state then transformed by sigmoid function
         autoencoder_classifier_state[i+1] = sigmoid(autoencoder_classifier_state[i+1])
+
     return autoencoder_classifier_state
     
-# Backpropagation
+# Backpropagation for feedforward classifier
 def bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, target, training_params):
+    # total number of data, for MNIST, it has 60000 training data
     data_num = feedforward_classifier_state[0].shape[0]
     connections_num = len(feedforward_classifier_connections)
     bias = np.ones((data_num, 1))
+    # a list for storing gradients of each weight matrix
     gradients = []
+    # a list for storing accumulated errors of each layer
     deltas = []
+    # iteratively compute cumulated errors and gradient of each layer
     for i in range(connections_num):
         output = feedforward_classifier_state[connections_num-i]
+        # compute accumulated error of output layer
         if i == 0:
             error = output - target
             delta = output * (1 - output) * error
+        # compute accumulated error of hidden layer
         else:
             delta = output * (1 - output) * deltas[-1].dot(feedforward_classifier_connections[connections_num-i][:-1,:].T)
         deltas.append(delta)
+        # get the output from the previous layer
         output_pre = feedforward_classifier_state[connections_num-i-1]
         output_pre = np.concatenate((output_pre, bias), axis = 1)
+        # compute gradient for this layer
         gradient = - training_params[0] * output_pre.T.dot(delta)
         gradients.append(gradient)
+
+    # the gradients are computed backward, so reverse it
     return gradients[::-1]
 
+# Backpropagation for autoencoder
 def bp_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connections, target, training_params):
+    # total number of data, for MNIST, it has 60000 training data
     data_num = autoencoder_classifier_state[0].shape[0]
     connections_num = len(autoencoder_classifier_connections)
+    bias = np.ones((data_num, 1))
+    # autoencoder can be trained with or without sparse constraint
     use_sparse = training_params[4]
     if use_sparse == True:
+        # desired average activation value on hidden layer, usually close to zero
         rho = training_params[2]
+        # penalty term of the sparse constraint, similar to learning rate
         beta = training_params[3]
+        # real average activation value on hidden layer
         rho_hat = np.mean(autoencoder_state[1], axis=0)
-    bias = np.ones((data_num, 1))
+    # a list for storing gradients of each weight matrix
     gradients = []
+    # a list for storing accumulated errors of each layer
     deltas = []
+    # iteratively compute cumulated errors and gradient of each layer
     for i in range(connections_num):
         output = autoencoder_state[connections_num-i]
+        # compute accumulated error of output layer
         if i == 0:
             error = output - target
             delta = output * (1 - output) * error
+        # compute accumulated error of hidden layer
         else:
             if use_sparse == True:
                 sparse_penalty = beta * (-1.0 * rho / rho_hat + (1.0 - rho) / (1.0 - rho_hat))
@@ -190,135 +256,171 @@ def bp_autoencoder(autoencoder_classifier_state, autoencoder_classifier_connecti
             else:
                 delta = output * (1 - output) * deltas[-1].dot(autoencoder_connections[connections_num-i][:-1,:].T)
         deltas.append(delta)
+        # get the output from the previous layer
         output_pre = autoencoder_state[connections_num-i-1]
         output_pre = np.concatenate((output_pre, bias), axis = 1)
+        # compute gradient for this layer
         gradient = - training_params[0] * output_pre.T.dot(delta)
         gradients.append(gradient)
+
+    # the gradients are computed backward, so reverse it
     return gradients[::-1]
 
-
+# Backpropagation for autoencoder classifier
 def bp_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, target, training_params):
+    # total number of data, for MNIST, it has 60000 training data
     data_num = autoencoder_classifier_state[0].shape[0]
     connections_num = len(autoencoder_classifier_connections)
-    fine_tune = training_params[2]
     bias = np.ones((data_num, 1))
+    # whether update the first layer weights or not
+    fine_tune = training_params[2]
+    # a list for storing gradients of each weight matrix
     gradients = []
+    # a list for storing accumulated errors of each layer
     deltas = []
+    # also update the first layer weights
     if fine_tune == True:
         for i in range(connections_num):
             output = autoencoder_classifier_state[connections_num-i]
+            # compute accumulated error of output layer
             if i == 0:
                 error = output - target
                 delta = output * (1.0 - output) * error
+            # compute accumulated error of hidden layer
             else:
                 delta = output * (1.0 - output) * deltas[-1].dot(autoencoder_classifier_connections[connections_num-i][:-1,:].T)
             deltas.append(delta)
+            # get the output from the previous layer
             output_pre = autoencoder_classifier_state[connections_num-i-1]
             output_pre = np.concatenate((output_pre, bias), axis = 1)
+            # compute gradient for this layer
             gradient = - training_params[0] * output_pre.T.dot(delta)
             gradients.append(gradient)
+    # do not update the first layer weights
     else:
         for i in range(connections_num - 1):
             output = autoencoder_classifier_state[connections_num-i]
+            # compute accumulated error of output layer
             if i == 0:
                 error = output - target
                 delta = output * (1.0 - output) * error
+            # compute accumulated error of hidden layer
             else:
                 delta = output * (1.0 - output) * deltas[-1].dot(autoencoder_classifier_connections[connections_num-i][:-1,:].T)
             deltas.append(delta)
+            # get the output from the previous layer
             output_pre = autoencoder_classifier_state[connections_num-i-1]
             output_pre = np.concatenate((output_pre, bias), axis = 1)
+            # compute gradient for this layer
             gradient = - training_params[0] * output_pre.T.dot(delta)
             gradients.append(gradient)
+
+    # the gradients are computed backward, so reverse it
     return gradients[::-1]
 
+# Cost function of feedforward classifier
 def cost_feedforward_classifier(output, target):
     cost = np.sum(np.square(output - target)) / 2
+
     return cost
 
+# Cost function of autoencoder
 def cost_autoencoder(autoencoder_state, target, training_params):
     output = autoencoder_state[-1]
     use_sparse = training_params[4]
+    # if use sparse, also add the sparse constraint as cost
     if use_sparse == True:
         rho = training_params[2]
         rho_hat = np.mean(autoencoder_state[1], axis=0)
         cost1 = np.sum(np.square(output - target)) / 2
         cost2 = rho * np.log(1.0 * rho / rho_hat) + (1.0 - rho) * np.log((1.0-rho) / (1.0 - rho_hat))
         cost2 = np.sum(cost2)
+
         return cost1 + cost2
     else:
         cost = np.sum(np.square(output - target)) / 2
+
         return cost
         
+# Cost function of autoencoder classifier
 def cost_autoencoder_classifier(output, target):
     cost = np.sum(np.square(output - target)) / 2
+
     return cost
 
-# Main functions to handle the training of the networks. 
-# Feel free to write auxiliary functions and call them from here.
-# These functions are supposed to call the update functions.
+# Main training function of feedforward classifier
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params):
     print "start training feedforward classifier..."
-    # Place your code here
     data_num = training_data[0].shape[0]
+    # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
     costs = []
     for i in range(iteration_num):
-        accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
         feedforward_classifier_state[0] = training_data[0]
         feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
         cost = cost_feedforward_classifier(feedforward_classifier_state[-1], training_data[1])
         costs.append(cost)
-        print "iteration %d, cost: %f, accuracy: %d" % (i+1, cost, accuracy)
+        print "iteration %d, cost: %f" % (i, cost)
         # compute gradients using backpropagation
         gradients = bp_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data[1], training_params)
         # update weights using the gradients
         for k in range(len(gradients)):
             feedforward_classifier_connections[k] += gradients[k]
+    # print the final cost on training data
+    feedforward_classifier_state[0] = training_data[0]
+    feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
+    cost = cost_feedforward_classifier(feedforward_classifier_state[-1], training_data[1])
+    costs.append(cost)
+    print "Final cost: %f" % cost
 
-    # Please do output your training performance here
+
     return feedforward_classifier_connections
     
+# Main training function of autoencoder
 def train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params):
     use_sparse = training_params[4]
     if use_sparse == True:
         print "start training sparse autoencoder..."
     else:
         print "start training autoencoder..."
-    # Place your code here
     data_num = training_data[0].shape[0]
+    # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
     costs = []
     for i in range(iteration_num):
-        cost_test = test_autoencoder(autoencoder_state, autoencoder_connections, test_data, training_params)
         autoencoder_state[0] = training_data[0]
         autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
         cost = cost_autoencoder(autoencoder_state, training_data[0], training_params)
         costs.append(cost)
-        print "iteration %d, cost: %f, cost_test: %f" % (i+1, cost, cost_test)
+        print "iteration %d, cost: %f" % (i, cost)
         # compute gradients using backpropagation
         gradients = bp_autoencoder(autoencoder_state, autoencoder_connections, training_data[0], training_params)
         # update weights using the gradients
         for k in range(len(gradients)):
             autoencoder_connections[k] += gradients[k]
+    # print the final cost on training data
+    autoencoder_state[0] = training_data[0]
+    autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
+    cost = cost_autoencoder(autoencoder_state, training_data[0], training_params)
+    costs.append(cost)
+    print "Final cost: %f" % cost
     
-    # Please do output your training performance here
     return autoencoder_connections
 
+# Main training function of autoencoder classifier
 def train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, test_data, training_params):
     print "start training autoencoder classifier..."
-    # Place your code here
     data_num = training_data[0].shape[0]
+    # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
     fine_tune = training_params[2]
     costs = []
     for i in range(iteration_num):
-        accuracy = test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data)
         autoencoder_classifier_state[0] = training_data[0]
         autoencoder_classifier_state = update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections)
         cost = cost_autoencoder_classifier(autoencoder_classifier_state[-1], training_data[1])
         costs.append(cost)
-        print "iteration %d, cost: %f, accuracy: %d" % (i+1, cost, accuracy)
+        print "iteration %d, cost: %f" % (i, cost)
         # compute gradients using backpropagation
         gradients = bp_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data[1], training_params)
         # update weights using the gradients
@@ -328,57 +430,54 @@ def train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_class
         else:
             for k in range(len(gradients)):
                 autoencoder_classifier_connections[k+1] += gradients[k]
+    # print the final cost on training data
+    autoencoder_classifier_state[0] = training_data[0]
+    autoencoder_classifier_state = update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections)
+    cost = cost_autoencoder_classifier(autoencoder_classifier_state[-1], training_data[1])
+    costs.append(cost)
+    print "Final cost: %f" % cost
     
-    # Please do output your training performance here
     return autoencoder_classifier_connections
 
-
-# Main functions to handle the testing of the networks. 
-# Feel free to write auxiliary functions and call them from here.
-# These functions are supposed to call the 'run' functions.
+# Test function of feedforward classifier, outputs accuracy on test data
 def test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data):
-    # Place your code here
+    # inputs the test data and update the network states
     feedforward_classifier_state[0] = test_data[0]
     feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
     # do prediction as the class with the largest output
     output = np.argmax(feedforward_classifier_state[-1], axis = 1)
     # labels of the test data
     target = test_data[1]
+    # count correct predictions
     correct = list(output - target).count(0)
     
-    # Please do output your test performance here
-    #return 1.0 * correct / len(test_data[1])
-    return correct
+    return correct / len(test_data[1])
 
-    #feedforward_classifier_state[0] = test_data[0]
-    #feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
-    #accuracy = cost_feedforward_classifier(feedforward_classifier_state[-1], test_data[1])
-    #return accuracy
-    
+# Test function of feedforward classifier, outputs cost on test data
 def test_autoencoder(autoencoder_state, autoencoder_connections, test_data, training_params):
-    # Place your code here
+    # inputs the test data and update the network states
     autoencoder_state[0] = test_data[0]
     autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
     output = autoencoder_state[-1]
     target = test_data[0]
+    # for autoencoder, compute cost on test data instead of do predictions
     cost_test = cost_autoencoder(autoencoder_state, target, training_params)
     
-    # Please do output your test performance here
     return cost_test
 
+# Test function of feedforward classifier, outputs accuracy on test data
 def test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data):
-    # Place your code here
+    # inputs the test data and update the network states
     autoencoder_classifier_state[0] = test_data[0]
     autoencoder_classifier_state = update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections)
     # do prediction as the class with the largest output
     output = np.argmax(autoencoder_classifier_state[-1], axis = 1)
     # labels of the test data
     target = test_data[1]
+    # count correct predictions
     correct = list(output - target).count(0)
     
-    # Please do output your test performance here
-    #return 1.0 * correct / len(test_data[1])
-    return correct
+    return correct / len(test_data[1])
 
 
 # You may also want to be able to save and load your networks, which will 
@@ -401,7 +500,6 @@ def test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classi
 #     return [autoencoder_classifier_state, autoencoder_classifier_connections]
 
 
-
 if __name__=='__main__':
 
     # Please use the following snippet for clarity if you have command-line 
@@ -415,9 +513,9 @@ if __name__=='__main__':
     # arg_2 = argv[2]
     # ...
     
-    
     # Read data here
-    f = gzip.open('MNIST_theano/mnist.pkl.gz', 'rb')
+    # read data from a preprocessed MNIST data
+    f = gzip.open('mnist.pkl.gz', 'rb')
     train_set, valid_set, test_set = cPickle.load(f)
     f.close()
     # treat both training data and validate data as training data
@@ -430,17 +528,16 @@ if __name__=='__main__':
     train_set_labels_vec = np.zeros((len(train_set_labels), 10))
     for i in range(len(train_set_labels)):
         train_set_labels_vec[i, train_set_labels[i]] = 1
+    # form the complete training data
     training_data = [] 
     training_data.append(train_set_images)
     training_data.append(train_set_labels_vec)
     
+    # 2d array, 10000 x 784
     test_set_images = test_set[0]
+    # 1d array, 10000 
     test_set_labels = test_set[1]
-    # transform digit in labels to ont-hot representation
-    # becomes 2d array, 10000 x 10
-    #test_set_labels_vec = np.zeros((len(test_set_labels), 10))
-    #for i in range(len(test_set_labels)):
-    #    test_set_labels_vec[i, test_set_labels[i]] = 1
+    # form the complete test data
     test_data = []
     test_data.append(test_set_images)
     test_data.append(test_set_labels)
@@ -454,23 +551,27 @@ if __name__=='__main__':
     # parameters below automatically.
     
     # Initialize network(s) here
+    # For feedforward classifier
     # two components in the initialization parameters, network layer size and number of data
     # for the layer size, each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    #initialization_params = [[784, 100, 10], training_data[0].shape[0]]       
-    #feedforward_classifier_state = None
-    #feedforward_classifier_connections = None 
-    #[feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
-    # Change initialization params if desired
-    #initialization_params = [[784, 100, 784], training_data[0].shape[0]]       
-    #autoencoder_state = None
-    #autoencoder_connections = None
-    #[autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
-    # Change initialization params if desired
+    initialization_params = [[784, 100, 10], training_data[0].shape[0]]       
+    feedforward_classifier_state = None
+    feedforward_classifier_connections = None 
+    [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
+
+    # For autoencoder
+    initialization_params = [[784, 100, 784], training_data[0].shape[0]]       
+    autoencoder_state = None
+    autoencoder_connections = None
+    [autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
+
+    # For autoencoder classifier
     # load trained weights of autoencoder
     with open('Results/ae_100_123_00003_600.json', 'r') as f:
         autoencoder_connections = json.loads(f.read())
     autoencoder_connections = [np.array(c) for c in autoencoder_connections]
+    # one more parameter for initialization here, which is the loaded weights from trained autoencoder
     initialization_params = [[784, 100, 50, 10], training_data[0].shape[0], autoencoder_connections[0]]       
     autoencoder_classifier_state = None
     autoencoder_classifier_connections = None
@@ -479,40 +580,48 @@ if __name__=='__main__':
     
     # Train network(s) here
     # learning rate, training iterations
-    #training_params = [0.00002, 800]
-    #feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
-    #feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
-    ## save feedforward classifier weights in json file
-    #print "saving feedforward classifier connections..."
-    #with open('fc_100_123_00002_800.json', 'w') as f:
-    #    f.write(json.dumps(feedforward_classifier_connections_json))
+    training_params = [0.00002, 800]
+    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
+    # save feedforward classifier weights in json file
+    print "saving feedforward classifier connections..."
+    feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
+    with open('fc_100_123_00002_800.json', 'w') as f:
+        f.write(json.dumps(feedforward_classifier_connections_json))
+
     # Change training params if desired
-    # learning rate, iteration number, sparse constraint on activated hidden neuron, sparse penalty weight, use sparse or not
-    #training_params = [0.00002, 600, 0.05, 1, False]
-    #autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
-    #autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
-    ## save autoencoder weights in json file
-    #print "saving autoencoder connections..."
-    #with open('ae_100_123_00002_600.json', 'w') as f:
-    #    f.write(json.dumps(autoencoder_connections_json))
+     learning rate, iteration number, sparse constraint on activated hidden neuron, sparse penalty weight, use sparse or not
+    training_params = [0.00002, 600, 0.05, 1, False]
+    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
+    # save autoencoder weights in json file
+    print "saving autoencoder connections..."
+    autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
+    with open('ae_100_123_00002_600.json', 'w') as f:
+        f.write(json.dumps(autoencoder_connections_json))
+
     # Change training params if desired
     # learning rate, iteration number, fine-tune the first layer or not
     training_params = [0.00003, 1000, False]
     autoencoder_classifier_connections = train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, test_data, training_params)
-    autoencoder_classifier_connections_json = [c.tolist() for c in autoencoder_classifier_connections]
     # save autoencoder classifier weights in json file
     print "saving autoencoder classifier connections..."
+    autoencoder_classifier_connections_json = [c.tolist() for c in autoencoder_classifier_connections]
     with open('ac_100-50_123_00003_1000.json', 'w') as f:
         f.write(json.dumps(autoencoder_classifier_connections_json))
    
-    
-    ## Test network(s) here
+
+    # Test network(s) here
     #test_params = None
-    #accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
-    #print "Accuracy on test data: %f" % accuracy
-    ## Change test params if desired
-    #test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
-    ## Change test params if desired
-    #test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
-    #    
+
+    # For feedforward classifier
+    accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
+    print "Feedforward classifier, accuracy on test data: %f" % accuracy
+
+    # For autoencoder
+    cost_test = test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
+    print "Autoencoder, cost on test data: %f" % cost_test
+
+    # For autoencoder classifier
+    accuracy = test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
+    print "Autoencoder classifier, accuracy on test data: %f" % accuracy
+        
     ## You can use gui_template.py functions for visualization as you wish
