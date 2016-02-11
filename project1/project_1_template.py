@@ -350,7 +350,7 @@ def cost_autoencoder_classifier(output, target):
 
 # Main training function of feedforward classifier
 def train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params):
-    print "start training feedforward classifier..."
+    print "Start training feedforward classifier..."
     data_num = training_data[0].shape[0]
     # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
@@ -371,8 +371,8 @@ def train_feedforward_classifier(feedforward_classifier_state, feedforward_class
     feedforward_classifier_state = update_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections)
     cost = cost_feedforward_classifier(feedforward_classifier_state[-1], training_data[1])
     costs.append(cost)
-    print "Final cost: %f" % cost
-
+    print "iteration %d, cost: %f" % (iteration_num, cost)
+    print "Finish training!"
 
     return feedforward_classifier_connections
     
@@ -380,9 +380,9 @@ def train_feedforward_classifier(feedforward_classifier_state, feedforward_class
 def train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params):
     use_sparse = training_params[4]
     if use_sparse == True:
-        print "start training sparse autoencoder..."
+        print "Start training sparse autoencoder..."
     else:
-        print "start training autoencoder..."
+        print "Start training autoencoder..."
     data_num = training_data[0].shape[0]
     # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
@@ -403,13 +403,14 @@ def train_autoencoder(autoencoder_state, autoencoder_connections, training_data,
     autoencoder_state = update_autoencoder(autoencoder_state, autoencoder_connections)
     cost = cost_autoencoder(autoencoder_state, training_data[0], training_params)
     costs.append(cost)
-    print "Final cost: %f" % cost
+    print "iteration %d, cost: %f" % (iteration_num, cost)
+    print "Finish training!"
     
     return autoencoder_connections
 
 # Main training function of autoencoder classifier
 def train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, test_data, training_params):
-    print "start training autoencoder classifier..."
+    print "Start training autoencoder classifier..."
     data_num = training_data[0].shape[0]
     # number of iterations for training, this is the only stop criterion
     iteration_num = training_params[1]
@@ -435,7 +436,8 @@ def train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_class
     autoencoder_classifier_state = update_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections)
     cost = cost_autoencoder_classifier(autoencoder_classifier_state[-1], training_data[1])
     costs.append(cost)
-    print "Final cost: %f" % cost
+    print "iteration %d, cost: %f" % (iteration_num, cost)
+    print "Finish training!"
     
     return autoencoder_classifier_connections
 
@@ -480,26 +482,6 @@ def test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classi
     return correct / len(test_data[1])
 
 
-# You may also want to be able to save and load your networks, which will 
-# help you for debugging weird behavior. (Consider this seriously if you
-# are having debugging problems.)
-
-# def save_feedforward_classifier(filename, feedforward_classifier_state, feedforward_classifier_connections):
-#     None
-# def load_feedforward_classifier(filename):
-#     return [feedforward_classifier_state, feedforward_classifier_connections]
-
-# def save_autoencoder(filename, autoencoder_state, autoencoder_connections):
-#     None
-# def load_autoencoder(filename):
-#     return [autoencoder_state, autoencoder_connections]
-
-# def save_autoencoder_classifier(filename, autoencoder_classifier_state, autoencoder_classifier_connections):
-#     None
-# def load_autoencoder(filename):
-#     return [autoencoder_classifier_state, autoencoder_classifier_connections]
-
-
 if __name__=='__main__':
 
     # Please use the following snippet for clarity if you have command-line 
@@ -513,8 +495,8 @@ if __name__=='__main__':
     # arg_2 = argv[2]
     # ...
     
-    # Read data here
-    # read data from a preprocessed MNIST data
+    # Read data from a preprocessed MNIST data
+    print "Reading MNIST data...\n"
     f = gzip.open('mnist.pkl.gz', 'rb')
     train_set, valid_set, test_set = cPickle.load(f)
     f.close()
@@ -542,86 +524,108 @@ if __name__=='__main__':
     test_data.append(test_set_images)
     test_data.append(test_set_labels)
     
-    # You may also use the gui_template.py functions to collect image data from the user. eg:
-    # training_data = gt.get_images()
-    # if len(training_data) != 0:
-        #     gt.visualize_image(training_data[-1])
-    
-    # If you wish, you can have a loop here, or any other place really, that will update the
-    # parameters below automatically.
-    
-    # Initialize network(s) here
-    # For feedforward classifier
+    ###############################################################################################################
+    # For feedforward classifier, just comment this block if you don't use feedforward network
+    # Initialization
     # two components in the initialization parameters, network layer size and number of data
     # for the layer size, each number stands for the number of neurons in each layer
     # from left to right are input layer, hidden layer(s), output layer
-    initialization_params = [[784, 100, 10], training_data[0].shape[0]]       
+    # e.g. no hidden layer: [784, 10], two hidden layers: [784, 100, 50, 10]
+    initialization_params = [[784, 100, 50, 10], training_data[0].shape[0]]       
     feedforward_classifier_state = None
     feedforward_classifier_connections = None 
     [feedforward_classifier_state, feedforward_classifier_connections] = init_feedforward_classifier(initialization_params)
+    # Training 
+    # parameters for training: learning rate, training iterations
+    training_params = [0.00003, 800]
+    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
+    # save feedforward classifier weights in json file
+    print "Saving feedforward classifier connections..."
+    feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
+    # generate file name
+    nn = 'fc'
+    if len(initialization_params[0]) > 2:
+        hidden_layer = '-'.join([str(x) for x in initialization_params[0][1:-1]])
+    else:
+        hidden_layer = 'none'
+    seed = '123'
+    learning_rate = format(training_params[0], 'f')
+    iteration_num = str(training_params[1])
+    file_name = '_'.join([nn, hidden_layer, seed, learning_rate, iteration_num]) + '.json'
+    with open(file_name, 'w') as f:
+        f.write(json.dumps(feedforward_classifier_connections_json))
+    # Testing
+    accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
+    print "Feedforward classifier, accuracy on test data: %f\n" % accuracy
+    ###############################################################################################################
 
-    # For autoencoder
+    ###############################################################################################################
+    # For autoencoder, just comment this block if you don't use autoencoder
+    # Initialization
     initialization_params = [[784, 100, 784], training_data[0].shape[0]]       
     autoencoder_state = None
     autoencoder_connections = None
     [autoencoder_state, autoencoder_connections] = init_autoencoder(initialization_params)
+    # Training 
+    # parameters for training:
+    # learning rate, iteration number, sparse constraint on activated hidden neuron, sparse penalty weight, use sparse or not
+    training_params = [0.00003, 600, 0.05, 1, False]
+    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
+    # save autoencoder weights in json file
+    print "Saving autoencoder connections..."
+    autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
+    # generate file name
+    nn = 'ae'
+    hidden_layer = '-'.join([str(x) for x in initialization_params[0][1:-1]])
+    seed = '123'
+    learning_rate = format(training_params[0], 'f')
+    iteration_num = str(training_params[1])
+    if training_params[4] == True:
+        sparse = 'sparse'
+        file_name = '_'.join([nn, hidden_layer, seed, learning_rate, iteration_num, sparse]) + '.json'
+    else:
+        file_name = '_'.join([nn, hidden_layer, seed, learning_rate, iteration_num]) + '.json'
+    with open(file_name, 'w') as f:
+        f.write(json.dumps(autoencoder_connections_json))
+    # Testing
+    cost_test = test_autoencoder(autoencoder_state, autoencoder_connections, test_data, training_params)
+    print "Autoencoder, cost on test data: %f\n" % cost_test
+    ###############################################################################################################
 
-    # For autoencoder classifier
+    ###############################################################################################################
+    # For autoencoder classifier, just comment this block if you don't use autoencoder classifier
+    # Initialization
     # load trained weights of autoencoder
-    with open('Results/ae_100_123_00003_600.json', 'r') as f:
+    print "Loading weights from trained autoencoder..."
+    with open('ae_100-50_123_0.000030_600.json', 'r') as f:
         autoencoder_connections = json.loads(f.read())
     autoencoder_connections = [np.array(c) for c in autoencoder_connections]
-    # one more parameter for initialization here, which is the loaded weights from trained autoencoder
+    # initialization parameters: network structure, number of training data, trained weights of autoencoder
     initialization_params = [[784, 100, 50, 10], training_data[0].shape[0], autoencoder_connections[0]]       
     autoencoder_classifier_state = None
     autoencoder_classifier_connections = None
     [autoencoder_classifier_state, autoencoder_classifier_connections] = init_autoencoder_classifier(initialization_params)
-    
-    
-    # Train network(s) here
-    # learning rate, training iterations
-    training_params = [0.00002, 800]
-    feedforward_classifier_connections = train_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, training_data, test_data, training_params)
-    # save feedforward classifier weights in json file
-    print "saving feedforward classifier connections..."
-    feedforward_classifier_connections_json = [c.tolist() for c in feedforward_classifier_connections]
-    with open('fc_100_123_00002_800.json', 'w') as f:
-        f.write(json.dumps(feedforward_classifier_connections_json))
-
-    # Change training params if desired
-     learning rate, iteration number, sparse constraint on activated hidden neuron, sparse penalty weight, use sparse or not
-    training_params = [0.00002, 600, 0.05, 1, False]
-    autoencoder_connections = train_autoencoder(autoencoder_state, autoencoder_connections, training_data, test_data, training_params)
-    # save autoencoder weights in json file
-    print "saving autoencoder connections..."
-    autoencoder_connections_json = [c.tolist() for c in autoencoder_connections]
-    with open('ae_100_123_00002_600.json', 'w') as f:
-        f.write(json.dumps(autoencoder_connections_json))
-
-    # Change training params if desired
+    # Training 
     # learning rate, iteration number, fine-tune the first layer or not
-    training_params = [0.00003, 1000, False]
+    training_params = [0.00003, 800, False]
     autoencoder_classifier_connections = train_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, training_data, test_data, training_params)
     # save autoencoder classifier weights in json file
-    print "saving autoencoder classifier connections..."
+    print "Saving autoencoder classifier connections..."
     autoencoder_classifier_connections_json = [c.tolist() for c in autoencoder_classifier_connections]
-    with open('ac_100-50_123_00003_1000.json', 'w') as f:
+    # generate file name
+    nn = 'ac'
+    hidden_layer = '-'.join([str(x) for x in initialization_params[0][1:-1]])
+    seed = '123'
+    learning_rate = format(training_params[0], 'f')
+    iteration_num = str(training_params[1])
+    if training_params[2] == True:
+        fine_tune = 'fine-tune'
+        file_name = '_'.join([nn, hidden_layer, seed, learning_rate, iteration_num, fine_tune]) + '.json'
+    else:
+        file_name = '_'.join([nn, hidden_layer, seed, learning_rate, iteration_num]) + '.json'
+    with open(file_name, 'w') as f:
         f.write(json.dumps(autoencoder_classifier_connections_json))
-   
-
-    # Test network(s) here
-    #test_params = None
-
-    # For feedforward classifier
-    accuracy = test_feedforward_classifier(feedforward_classifier_state, feedforward_classifier_connections, test_data)
-    print "Feedforward classifier, accuracy on test data: %f" % accuracy
-
-    # For autoencoder
-    cost_test = test_autoencoder(autoencoder_state, autoencoder_connections, test_data, test_params)
-    print "Autoencoder, cost on test data: %f" % cost_test
-
-    # For autoencoder classifier
-    accuracy = test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data, test_params)
+    # Testing
+    accuracy = test_autoencoder_classifier(autoencoder_classifier_state, autoencoder_classifier_connections, test_data)
     print "Autoencoder classifier, accuracy on test data: %f" % accuracy
-        
-    ## You can use gui_template.py functions for visualization as you wish
+    ###############################################################################################################
